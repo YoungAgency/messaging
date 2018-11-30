@@ -35,6 +35,7 @@ func main() {
       return err
     }
     ...
+    return nil
   })
 }
 ```
