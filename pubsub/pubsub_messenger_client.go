@@ -46,10 +46,7 @@ func (m *PubSubMessengerClient) Publish(obj interface{}, topicName string) error
 	// Block until the result is returned and a server-generated
 	// ID is returned for the published message.
 	_, err = result.Get(ctx)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (m *PubSubMessengerClient) Subscribe(topicName string, handlerFunc func(context.Context, string, int64, []byte) error) error {
