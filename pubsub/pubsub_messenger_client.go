@@ -59,7 +59,7 @@ func (m *PubSubMessengerClient) Publish(obj interface{}, topicName string) error
 	return nil
 }
 
-func (m *PubSubMessengerClient) Subscribe(topicName string, handlerFunc func(context.Context, string, int64, []byte) error) error {
+func (m *PubSubMessengerClient) Subscribe(topicName string, handlerFunc func(context.Context, string, string, int64, []byte) error) error {
 	ctx := context.Background()
 	topic, err := m.createTopic(ctx, m.Client, topicName)
 	if err != nil {
@@ -79,7 +79,7 @@ func (m *PubSubMessengerClient) Subscribe(topicName string, handlerFunc func(con
 					return
 				}
 			}
-			err := handlerFunc(ctx, msg.ID, msg.PublishTime.UnixNano()/int64(time.Millisecond), msg.Data)
+			err := handlerFunc(ctx, topicName, msg.ID, msg.PublishTime.UnixNano()/int64(time.Millisecond), msg.Data)
 			if err != nil {
 				fmt.Printf("Error processing message %v. %v\n", msg.ID, err.Error())
 				msg.Nack()
