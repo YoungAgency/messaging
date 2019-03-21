@@ -99,6 +99,50 @@ func (m *PubSubMessengerClient) Subscribe(topicName string, handlerFunc func(con
 	return nil
 }
 
+func (m *PubSubMessengerClient) SubscribeWithLimit(topicName string, maxConcurrent int, handlerFunc func(context.Context, string, string, int64, []byte) error) error {
+	ctx := context.Background()
+	topic, err := m.createTopic(ctx, m.Client, topicName)
+	if err != nil {
+		return err
+	}
+	subscription, err := m.createSubscription(ctx, m.Client, m.SubscriptionName+"-"+topicName, topic)
+	if err != nil {
+		return err
+	}
+	if maxConcurrent < 0 {
+		maxConcurrent = 0
+	}
+	subscription.ReceiveSettings.MaxOutstandingMessages = maxConcurrent
+	go func() {
+		err = subscription.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
+			if m.Token != "" {
+				token, ok := msg.Attributes["token"]
+				if !ok || token != m.Token {
+					fmt.Printf("Unauthenticated message %v\n", msg.ID)
+					msg.Ack()
+					return
+				}
+			}
+			err := handlerFunc(ctx, topicName, msg.ID, msg.PublishTime.UnixNano()/int64(time.Millisecond), msg.Data)
+			if err != nil {
+				fmt.Printf("Error processing message %v. %v\n", msg.ID, err.Error())
+				msg.Nack()
+			} else {
+				msg.Ack()
+			}
+		})
+		fmt.Println("Stoppped receiving")
+		if err != nil {
+			fmt.Printf("Subscription error: %v\n", err.Error())
+			go func() {
+				m.Subscribe(topicName, handlerFunc)
+			}()
+			return
+		}
+	}()
+	return nil
+}
+
 func (m *PubSubMessengerClient) createTopic(ctx context.Context, client *pubsub.Client, topicName string) (*pubsub.Topic, error) {
 	topic := client.Topic(topicName)
 	// Create the topic if it doesn't exist.
