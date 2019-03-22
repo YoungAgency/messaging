@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
-	"messaging/pubsub/types"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/YoungAgency/messaging/pubsub/types"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -21,7 +22,7 @@ func initClient(token string) types.PubSubMessenger {
 func TestSubscribe(t *testing.T) {
 	messagingClient := initClient("")
 	finish := make(chan bool, 0)
-	messagingClient.Subscribe("testevent", func(ctx context.Context, msgId string, timestamp int64, msg []byte) error {
+	messagingClient.Subscribe("testevent", func(ctx context.Context, topicName string, msgId string, timestamp int64, msg []byte) error {
 		finish <- true
 		return nil
 	})
@@ -42,7 +43,7 @@ func TestSubscribe(t *testing.T) {
 func TestWithToken(t *testing.T) {
 	messagingClient := initClient("token")
 	finish := make(chan bool, 0)
-	messagingClient.Subscribe("testevent", func(ctx context.Context, msgId string, timestamp int64, msg []byte) error {
+	messagingClient.Subscribe("testevent", func(ctx context.Context, topicName string, msgId string, timestamp int64, msg []byte) error {
 		finish <- true
 		return nil
 	})
@@ -66,7 +67,7 @@ func TestWithoutToken(t *testing.T) {
 	count := 0
 	var wg sync.WaitGroup
 	wg.Add(1)
-	messagingClient.Subscribe("testevent", func(ctx context.Context, msgId string, timestamp int64, msg []byte) error {
+	messagingClient.Subscribe("testevent", func(ctx context.Context, topicName string, msgId string, timestamp int64, msg []byte) error {
 		count++
 		wg.Done()
 		return nil
@@ -100,7 +101,7 @@ func TestMultiple(t *testing.T) {
 	var wg sync.WaitGroup
 	msgSent := rand.Intn(200)
 	wg.Add(msgSent)
-	messagingClient.Subscribe("testevent", func(ctx context.Context, msgId string, timestamp int64, msg []byte) error {
+	messagingClient.Subscribe("testevent", func(ctx context.Context, topicName string, msgId string, timestamp int64, msg []byte) error {
 		test := struct {
 			TestString string
 			TestInt    int

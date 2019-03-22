@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"cloud.google.com/go/pubsub"
 	"google.golang.org/api/option"
 	grpc "google.golang.org/grpc"
@@ -49,10 +52,17 @@ func (m *PubSubMessengerClient) Publish(obj interface{}, topicName string) error
 		message.Attributes["token"] = m.Token
 	}
 	result := topic.Publish(ctx, message)
-
 	// Block until the result is returned and a server-generated
 	// ID is returned for the published message.
+
 	_, err = result.Get(ctx)
+	if status.Code(err) == codes.InvalidArgument { // Topic does not exist
+		_, err = m.createTopic(ctx, m.Client, topicName)
+		if err != nil {
+			panic(err)
+		}
+		return m.Publish(obj, topicName)
+	}
 	if err != nil {
 		return err
 	}
