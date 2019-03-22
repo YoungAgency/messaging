@@ -56,7 +56,7 @@ func (m *PubSubMessengerClient) Publish(obj interface{}, topicName string) error
 	// ID is returned for the published message.
 
 	_, err = result.Get(ctx)
-	if status.Code(err) == codes.InvalidArgument { // Topic does not exist
+	if status.Code(err) == codes.InvalidArgument || status.Code(err) == codes.NotFound { // Topic does not exist
 		_, err = m.createTopic(ctx, m.Client, topicName)
 		if err != nil {
 			panic(err)
