@@ -4,8 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/YoungAgency/utils"
-
+	"github.com/YoungAgency/utils/date"
 	"github.com/gomodule/redigo/redis"
 )
 
@@ -49,7 +48,7 @@ func (es RedisEventStorage) Add(ctx context.Context, topic string, eventID strin
 	if err != nil {
 		return err
 	}
-	now := utils.ToMilliseconds(time.Now())
+	now := date.NowTimestamp()
 	_, err = conn.Do("HSET", topic, eventID, now)
 	if err != nil {
 		return err
