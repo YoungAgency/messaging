@@ -8,10 +8,10 @@
   version = "v0.37.4"
 
 [[projects]]
-  branch = "develop"
   name = "github.com/YoungAgency/utils"
-  packages = ["."]
+  packages = ["date"]
   revision = "7fc5cf1e10835946de81e0a4ee436654a3a393d8"
+  version = "v2.0.0"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -83,7 +83,7 @@
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "3fd5a3612ccd7907f26270fa92579a0f2f76f734"
+  revision = "12500544f89f9420afe9529ba8940bf72d294972"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -118,6 +118,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "954c932b1679dbd75d0aacd83940bb7c5d953c572eeb1f9513ebe6e419415b5d"
+  inputs-digest = "96836a00a0b3520170feefe86a561544bea23d84ff8fce0eef1d294117b79194"
   solver-name = "gps-cdcl"
   solver-version = 1

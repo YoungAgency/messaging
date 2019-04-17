@@ -26,8 +26,8 @@
   version = "0.37.4"
 
 [[constraint]]
-  branch = "develop"
   name = "github.com/YoungAgency/utils"
+  version = "2.0.0"
 
 [[constraint]]
   name = "github.com/gomodule/redigo"
