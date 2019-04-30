@@ -14,6 +14,10 @@ type RedisEventStorage struct {
 	pool *redis.Pool
 }
 
+var (
+	ErrDuplicateEvent = errors.New("Event already exists")
+)
+
 // NewRedisEventStorage creates a connection pool to redis
 func NewRedisEventStorage(host string, db int) RedisEventStorage {
 	if host == "" {
@@ -44,7 +48,7 @@ func (es RedisEventStorage) Add(ctx context.Context, topic string, eventID strin
 	defer conn.Close()
 	exists, err := es.Exists(ctx, topic, eventID)
 	if exists {
-		return errors.New("Event already exists")
+		return ErrDuplicateEvent
 	}
 	if err != nil {
 		return err
