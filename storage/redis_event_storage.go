@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/YoungAgency/utils/date"
@@ -43,7 +44,7 @@ func (es RedisEventStorage) Add(ctx context.Context, topic string, eventID strin
 	defer conn.Close()
 	exists, err := es.Exists(ctx, topic, eventID)
 	if exists {
-		panic("EventStorage: Event already exist!")
+		return errors.New("Event already exists")
 	}
 	if err != nil {
 		return err
