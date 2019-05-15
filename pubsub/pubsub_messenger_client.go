@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"os"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -21,6 +23,7 @@ type PubSubMessengerClient struct {
 	ProjectId        string
 	SubscriptionName string
 	Token            string
+	logger           *log.Logger
 }
 
 func (m *PubSubMessengerClient) Connect() error {
@@ -36,6 +39,7 @@ func (m *PubSubMessengerClient) Connect() error {
 		return err
 	}
 	m.Client = client
+	m.logger = log.New(os.Stderr, "PubSub: ", 0)
 	return nil
 }
 
@@ -84,22 +88,22 @@ func (m *PubSubMessengerClient) Subscribe(topicName string, handlerFunc func(con
 			if m.Token != "" {
 				token, ok := msg.Attributes["token"]
 				if !ok || token != m.Token {
-					fmt.Printf("Unauthenticated message %v\n", msg.ID)
+					m.logger.Println("Unauthenticated message", msg.ID)
 					msg.Ack()
 					return
 				}
 			}
 			err := handlerFunc(ctx, topicName, msg.ID, msg.PublishTime.UnixNano()/int64(time.Millisecond), msg.Data)
 			if err != nil {
-				fmt.Printf("Error processing message %v. %v\n", msg.ID, err.Error())
+				m.logger.Printf("error processing message %v\n", msg.ID)
 				msg.Nack()
 			} else {
 				msg.Ack()
 			}
 		})
-		fmt.Println("Stoppped receiving")
+		m.logger.Println("Stopped receiving")
 		if err != nil {
-			fmt.Printf("Subscription error: %v\n", err.Error())
+			m.logger.Println("Subscription error,", err.Error())
 			go func() {
 				m.Subscribe(topicName, handlerFunc)
 			}()
@@ -128,22 +132,22 @@ func (m *PubSubMessengerClient) SubscribeWithLimit(topicName string, maxConcurre
 			if m.Token != "" {
 				token, ok := msg.Attributes["token"]
 				if !ok || token != m.Token {
-					fmt.Printf("Unauthenticated message %v\n", msg.ID)
+					m.logger.Println("Unauthenticated message", msg.ID)
 					msg.Ack()
 					return
 				}
 			}
 			err := handlerFunc(ctx, topicName, msg.ID, msg.PublishTime.UnixNano()/int64(time.Millisecond), msg.Data)
 			if err != nil {
-				fmt.Printf("Error processing message %v. %v\n", msg.ID, err.Error())
+				m.logger.Printf("error processing message %v\n", msg.ID)
 				msg.Nack()
 			} else {
 				msg.Ack()
 			}
 		})
-		fmt.Println("Stoppped receiving")
+		m.logger.Println("Stopped receiving")
 		if err != nil {
-			fmt.Printf("Subscription error: %v\n", err.Error())
+			m.logger.Println("Subscription error,", err.Error())
 			go func() {
 				m.Subscribe(topicName, handlerFunc)
 			}()

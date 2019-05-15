@@ -15,6 +15,7 @@ type RedisEventStorage struct {
 }
 
 var (
+	// ErrDuplicateEvent is returned by Add method if given message already exists
 	ErrDuplicateEvent = errors.New("Event already exists")
 )
 
