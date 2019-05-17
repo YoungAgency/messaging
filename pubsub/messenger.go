@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
-
-	"github.com/YoungAgency/utils/date"
+	"time"
 
 	"google.golang.org/api/option"
 	grpc "google.golang.org/grpc"
@@ -93,7 +92,7 @@ func (s *PubSubService) Subscribe(ctx context.Context, topicName string, h Handl
 		rm := RawMessage{
 			TopicName: topicName,
 			MsgID:     msg.ID,
-			Timestamp: date.Timestamp(msg.PublishTime),
+			Timestamp: msg.PublishTime.UnixNano() / int64(time.Millisecond),
 			Data:      msg.Data,
 		}
 		err = h(ctx, rm)
@@ -127,8 +126,8 @@ func (s *PubSubService) Publish(ctx context.Context, topicName string, m RawMess
 	}
 }
 
-func (s *PubSubService) getTopic(ctx context.Context, topicName string) (t *ps.Topic, err error) {
-	topic := s.c.Topic(topicName)
+func (s *PubSubService) getTopic(ctx context.Context, topicName string) (topic *ps.Topic, err error) {
+	topic = s.c.Topic(topicName)
 	// Create the topic if it doesn't exist.
 	exists, err := topic.Exists(ctx)
 	if err != nil {
