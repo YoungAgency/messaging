@@ -7,6 +7,7 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
+// Options ,,
 type Options struct {
 	Host             string
 	Port             int
@@ -29,4 +30,5 @@ func parseOptions(opt *Options) (ret []option.ClientOption) {
 
 type SubscriptionOptions struct {
 	ConcurrentHandlers int
+	SubscriptionName   string
 }

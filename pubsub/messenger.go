@@ -19,7 +19,7 @@ type Messenger interface {
 }
 
 type Subscriber interface {
-	Subscribe(ctx context.Context, topic string, h Handler, opts ...SubscriptionOptions) error
+	Subscribe(ctx context.Context, topic string, h Handler, opt *SubscriptionOptions) error
 }
 
 type Publisher interface {
@@ -37,10 +37,6 @@ type RawMessage struct {
 type Handler func(context.Context, RawMessage) error
 
 func NewService(ctx context.Context, opt *Options) Messenger {
-	if opt == nil {
-		panic("options must be set")
-		// TODO validate options
-	}
 	client, err := ps.NewClient(ctx, opt.ProjectID, parseOptions(opt)...)
 	if err != nil {
 		panic(err)
@@ -58,20 +54,14 @@ type PubSubService struct {
 	opt    *Options
 }
 
-func (s *PubSubService) Subscribe(ctx context.Context, topicName string, h Handler, opts ...SubscriptionOptions) error {
+func (s *PubSubService) Subscribe(ctx context.Context, topicName string, h Handler, opt *SubscriptionOptions) error {
 	topic, err := s.getTopic(ctx, topicName)
 	if err != nil {
 		return err
 	}
-	sub, err := s.getSubsciption(ctx, topic)
+	sub, err := s.getSubsciption(ctx, topic, opt)
 	if err != nil {
 		return err
-	}
-	if opts != nil {
-		if len(opts) != 1 {
-			panic("invalid number of options")
-		}
-		sub.ReceiveSettings.MaxOutstandingMessages = opts[0].ConcurrentHandlers
 	}
 	return sub.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
 		var err error
@@ -83,14 +73,6 @@ func (s *PubSubService) Subscribe(ctx context.Context, topicName string, h Handl
 				msg.Ack()
 			}
 		}()
-		/* mToken := s.opt.Token
-		if s.opt.Token != "" {
-			token, ok := msg.Attributes["token"]
-			if !ok || token != mToken {
-				err = errors.New("Unatuhanticatate message")
-				return
-			}
-		} */
 		rm := RawMessage{
 			TopicName: topicName,
 			MsgID:     msg.ID,
@@ -111,10 +93,6 @@ func (s *PubSubService) Publish(ctx context.Context, topicName string, m RawMess
 		Data:       m.Data,
 		Attributes: m.Attributes,
 	}
-	/* if s.token != "" {
-		message.Attributes = make(map[string]string)
-		message.Attributes["token"] = s.token
-	} */
 	result := topic.Publish(ctx, message)
 	// Block until the result is returned and a server-generated
 	// ID is returned for the published message.
@@ -141,17 +119,30 @@ func (s *PubSubService) getTopic(ctx context.Context, topicName string) (topic *
 	return
 }
 
-func (s *PubSubService) getSubsciption(ctx context.Context, topic *pubsub.Topic) (sub *ps.Subscription, err error) {
-	topicName := topic.ID()
-	subscriptionName := s.opt.SubscriptionName + "-" + topicName
-	sub = s.c.Subscription(subscriptionName)
+func (s *PubSubService) getSubsciption(ctx context.Context, topic *pubsub.Topic, opt *SubscriptionOptions) (sub *ps.Subscription, err error) {
+	s.checkOptions(opt)
+	sub = s.c.Subscription(opt.SubscriptionName)
 	// Create the topic if it doesn't exist.
 	exists, err := sub.Exists(ctx)
 	if err != nil {
 		return
 	}
 	if !exists {
-		return s.c.CreateSubscription(ctx, subscriptionName, pubsub.SubscriptionConfig{Topic: topic})
+		sub, err = s.c.CreateSubscription(ctx, opt.SubscriptionName, pubsub.SubscriptionConfig{Topic: topic})
+		if err != nil {
+			return
+		}
+		sub.ReceiveSettings.MaxOutstandingMessages = opt.ConcurrentHandlers
 	}
 	return
+}
+
+func (s *PubSubService) checkOptions(opt *SubscriptionOptions) {
+	if opt == nil {
+		panic("pubsub: subscription options can't be nil")
+	} else {
+		if opt.SubscriptionName == "" {
+			panic("invalid subscription name")
+		}
+	}
 }
