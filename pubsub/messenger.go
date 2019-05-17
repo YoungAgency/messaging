@@ -2,20 +2,29 @@ package pubsub
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log"
-	"sync"
+	"os"
 	"time"
 
-	"google.golang.org/api/option"
-	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"cloud.google.com/go/pubsub"
 	ps "cloud.google.com/go/pubsub"
 )
+
+type Messenger interface {
+	Subscriber
+	Publisher
+}
+
+type Subscriber interface {
+	Subscribe(ctx context.Context, topic string, h Handler, opts ...SubscriptionOptions) error
+}
+
+type Publisher interface {
+	Publish(ctx context.Context, topic string, m RawMessage) error
+}
 
 type RawMessage struct {
 	TopicName  string
@@ -27,50 +36,42 @@ type RawMessage struct {
 
 type Handler func(context.Context, RawMessage) error
 
-type Subscriber interface {
-	Subscribe(ctx context.Context, topic string, h Handler) error
-}
-
-type Publisher interface {
-	Publish(ctx context.Context, topic string, m RawMessage) error
-}
-
-type Service interface {
-	Subscriber
-	Publisher
-}
-
-func NewService(ctx context.Context, opt *Options) Service {
+func NewService(ctx context.Context, opt *Options) Messenger {
 	if opt == nil {
 		panic("options must be set")
 		// TODO validate options
 	}
-	client, err := ps.NewClient(ctx, opt.ProjectId, parseOptions(opt)...)
+	client, err := ps.NewClient(ctx, opt.ProjectID, parseOptions(opt)...)
 	if err != nil {
 		panic(err)
 	}
 	return &PubSubService{
-		c: client,
+		c:      client,
+		logger: log.New(os.Stdout, "PubSub: ", 0),
+		opt:    opt,
 	}
 }
 
 type PubSubService struct {
-	c             *ps.Client
-	logger        *log.Logger
-	token         string
-	m             sync.Mutex
-	topics        map[string]*ps.Topic
-	subscriptions map[string]*ps.Subscription
+	c      *ps.Client
+	logger *log.Logger
+	opt    *Options
 }
 
-func (s *PubSubService) Subscribe(ctx context.Context, topicName string, h Handler) error {
+func (s *PubSubService) Subscribe(ctx context.Context, topicName string, h Handler, opts ...SubscriptionOptions) error {
 	topic, err := s.getTopic(ctx, topicName)
 	if err != nil {
 		return err
 	}
-	sub, err := s.getSubsciption(ctx, "DIO", topic)
+	sub, err := s.getSubsciption(ctx, topic)
 	if err != nil {
 		return err
+	}
+	if opts != nil {
+		if len(opts) != 1 {
+			panic("invalid number of options")
+		}
+		sub.ReceiveSettings.MaxOutstandingMessages = opts[0].ConcurrentHandlers
 	}
 	return sub.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
 		var err error
@@ -82,13 +83,14 @@ func (s *PubSubService) Subscribe(ctx context.Context, topicName string, h Handl
 				msg.Ack()
 			}
 		}()
-		if s.token != "" {
+		/* mToken := s.opt.Token
+		if s.opt.Token != "" {
 			token, ok := msg.Attributes["token"]
-			if !ok || token != s.token {
+			if !ok || token != mToken {
 				err = errors.New("Unatuhanticatate message")
 				return
 			}
-		}
+		} */
 		rm := RawMessage{
 			TopicName: topicName,
 			MsgID:     msg.ID,
@@ -139,7 +141,9 @@ func (s *PubSubService) getTopic(ctx context.Context, topicName string) (topic *
 	return
 }
 
-func (s *PubSubService) getSubsciption(ctx context.Context, subscriptionName string, topic *pubsub.Topic) (sub *ps.Subscription, err error) {
+func (s *PubSubService) getSubsciption(ctx context.Context, topic *pubsub.Topic) (sub *ps.Subscription, err error) {
+	topicName := topic.ID()
+	subscriptionName := s.opt.SubscriptionName + "-" + topicName
 	sub = s.c.Subscription(subscriptionName)
 	// Create the topic if it doesn't exist.
 	exists, err := sub.Exists(ctx)
@@ -150,24 +154,4 @@ func (s *PubSubService) getSubsciption(ctx context.Context, subscriptionName str
 		return s.c.CreateSubscription(ctx, subscriptionName, pubsub.SubscriptionConfig{Topic: topic})
 	}
 	return
-}
-
-func parseOptions(opt *Options) (ret []option.ClientOption) {
-	if len(opt.Host) == 0 {
-		ret = make([]option.ClientOption, 0)
-	} else {
-		ret = make([]option.ClientOption, 3)
-		ret[0] = option.WithoutAuthentication()
-		ret[1] = option.WithEndpoint(fmt.Sprintf("%v:%v", opt.Host, opt.Port))
-		ret[2] = option.WithGRPCDialOption(grpc.WithInsecure())
-	}
-	return
-}
-
-type Options struct {
-	Host             string
-	Port             int
-	ProjectId        string
-	SubscriptionName string
-	Token            string
 }
