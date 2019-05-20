@@ -59,7 +59,7 @@ func (s *PubSubMessenger) Subscribe(ctx context.Context, topicName string, h Han
 	if err != nil {
 		return err
 	}
-	sub, err := s.getSubsciption(ctx, topic, opt)
+	sub, err := s.getSubscription(ctx, topic, opt)
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (s *PubSubMessenger) getTopic(ctx context.Context, topicName string) (topic
 	return
 }
 
-func (s *PubSubMessenger) getSubsciption(ctx context.Context, topic *pubsub.Topic, opt *SubscriptionOptions) (sub *ps.Subscription, err error) {
+func (s *PubSubMessenger) getSubscription(ctx context.Context, topic *pubsub.Topic, opt *SubscriptionOptions) (sub *ps.Subscription, err error) {
 	s.checkOptions(opt)
 	sub = s.c.Subscription(opt.SubscriptionName)
 	// Create the topic if it doesn't exist.
@@ -132,8 +132,8 @@ func (s *PubSubMessenger) getSubsciption(ctx context.Context, topic *pubsub.Topi
 		if err != nil {
 			return
 		}
-		sub.ReceiveSettings.MaxOutstandingMessages = opt.ConcurrentHandlers
 	}
+	sub.ReceiveSettings.MaxOutstandingMessages = opt.ConcurrentHandlers
 	return
 }
 
