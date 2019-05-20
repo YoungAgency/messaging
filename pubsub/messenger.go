@@ -36,25 +36,25 @@ type RawMessage struct {
 
 type Handler func(context.Context, RawMessage) error
 
-func NewService(ctx context.Context, opt *Options) Messenger {
+func NewMessenger(ctx context.Context, opt *Options) Messenger {
 	client, err := ps.NewClient(ctx, opt.ProjectID, parseOptions(opt)...)
 	if err != nil {
 		panic(err)
 	}
-	return &PubSubService{
+	return &PubSubMessenger{
 		c:      client,
 		logger: log.New(os.Stdout, "PubSub: ", 0),
 		opt:    opt,
 	}
 }
 
-type PubSubService struct {
+type PubSubMessenger struct {
 	c      *ps.Client
 	logger *log.Logger
 	opt    *Options
 }
 
-func (s *PubSubService) Subscribe(ctx context.Context, topicName string, h Handler, opt *SubscriptionOptions) error {
+func (s *PubSubMessenger) Subscribe(ctx context.Context, topicName string, h Handler, opt *SubscriptionOptions) error {
 	topic, err := s.getTopic(ctx, topicName)
 	if err != nil {
 		return err
@@ -84,7 +84,7 @@ func (s *PubSubService) Subscribe(ctx context.Context, topicName string, h Handl
 	})
 }
 
-func (s *PubSubService) Publish(ctx context.Context, topicName string, m RawMessage) error {
+func (s *PubSubMessenger) Publish(ctx context.Context, topicName string, m RawMessage) error {
 	topic, err := s.getTopic(ctx, topicName)
 	if err != nil {
 		return err
@@ -106,7 +106,7 @@ func (s *PubSubService) Publish(ctx context.Context, topicName string, m RawMess
 	}
 }
 
-func (s *PubSubService) getTopic(ctx context.Context, topicName string) (topic *ps.Topic, err error) {
+func (s *PubSubMessenger) getTopic(ctx context.Context, topicName string) (topic *ps.Topic, err error) {
 	topic = s.c.Topic(topicName)
 	// Create the topic if it doesn't exist.
 	exists, err := topic.Exists(ctx)
@@ -119,7 +119,7 @@ func (s *PubSubService) getTopic(ctx context.Context, topicName string) (topic *
 	return
 }
 
-func (s *PubSubService) getSubsciption(ctx context.Context, topic *pubsub.Topic, opt *SubscriptionOptions) (sub *ps.Subscription, err error) {
+func (s *PubSubMessenger) getSubsciption(ctx context.Context, topic *pubsub.Topic, opt *SubscriptionOptions) (sub *ps.Subscription, err error) {
 	s.checkOptions(opt)
 	sub = s.c.Subscription(opt.SubscriptionName)
 	// Create the topic if it doesn't exist.
@@ -137,7 +137,7 @@ func (s *PubSubService) getSubsciption(ctx context.Context, topic *pubsub.Topic,
 	return
 }
 
-func (s *PubSubService) checkOptions(opt *SubscriptionOptions) {
+func (s *PubSubMessenger) checkOptions(opt *SubscriptionOptions) {
 	if opt == nil {
 		panic("pubsub: subscription options can't be nil")
 	} else {
