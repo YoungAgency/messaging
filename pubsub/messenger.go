@@ -59,6 +59,7 @@ func (s *PubSubMessenger) Subscribe(ctx context.Context, topicName string, h Han
 	if err != nil {
 		return err
 	}
+	opt.SubscriptionName += "-" + topicName
 	sub, err := s.getSubscription(ctx, topic, opt)
 	if err != nil {
 		return err
