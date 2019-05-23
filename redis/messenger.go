@@ -1,0 +1,74 @@
+package redis
+
+import (
+	"context"
+
+	"github.com/gomodule/redigo/redis"
+	client "github.com/gomodule/redigo/redis"
+)
+
+type Messenger interface {
+	Subscriber
+	Publisher
+}
+
+// Subscriber interface permits to subscribe to redis channel
+type Subscriber interface {
+	Subscribe(ctx context.Context, channel string) (<-chan string, <-chan error)
+}
+
+// Publisher interface permits to publish messages to Redis Pub/Sub service
+type Publisher interface {
+	Publish(ctx context.Context, channel string, m string) error
+}
+
+// PoolMessenger implements Messenger interface
+// It uses a pool of redis connection for Subscribe and Receive
+type PoolMessenger struct {
+	Pool *client.Pool
+}
+
+// Subscribe performs a subscription on channel until ctx is done
+// Every message or error is sent with returned channels
+func (m PoolMessenger) Subscribe(ctx context.Context, channel string) (<-chan string, <-chan error) {
+	out, out2 := make(chan string), make(chan error)
+
+	go func() {
+		psc := redis.PubSubConn{Conn: m.Pool.Get()}
+		defer func() {
+			psc.Unsubscribe()
+			psc.Close()
+			close(out)
+			close(out2)
+		}()
+		err := psc.Subscribe(channel)
+		if err != nil {
+			out2 <- err
+			return
+		}
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				switch v := psc.Receive().(type) {
+				case redis.Message:
+					out <- string(v.Data)
+				case redis.Subscription:
+					// fmt.Printf("%s: %s %d\n", v.Channel, v.Kind, v.Count)
+				case error:
+					out2 <- v
+				}
+			}
+		}
+	}()
+
+	return out, out2
+}
+
+// Publish publish given msg on given channel
+func (m PoolMessenger) Publish(ctx context.Context, channel string, msg string) error {
+	c := m.Pool.Get()
+	_, err := c.Do("PUBLISH", channel, msg)
+	return err
+}
