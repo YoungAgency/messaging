@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -42,16 +43,19 @@ func NewMessenger(ctx context.Context, opt *Options) Messenger {
 		panic(err)
 	}
 	return &PubSubMessenger{
-		c:      client,
-		logger: log.New(os.Stdout, "PubSub: ", 0),
-		opt:    opt,
+		c:        client,
+		logger:   log.New(os.Stdout, "PubSub: ", 0),
+		opt:      opt,
+		topicMap: make(map[string]*ps.Topic),
 	}
 }
 
 type PubSubMessenger struct {
-	c      *ps.Client
-	logger *log.Logger
-	opt    *Options
+	c        *ps.Client
+	logger   *log.Logger
+	opt      *Options
+	topicMap map[string]*ps.Topic
+	m        sync.Mutex
 }
 
 func (s *PubSubMessenger) Subscribe(ctx context.Context, topicName string, h Handler, opt *SubscriptionOptions) error {
@@ -108,14 +112,24 @@ func (s *PubSubMessenger) Publish(ctx context.Context, topicName string, m RawMe
 }
 
 func (s *PubSubMessenger) getTopic(ctx context.Context, topicName string) (topic *ps.Topic, err error) {
-	topic = s.c.Topic(topicName)
-	// Create the topic if it doesn't exist.
-	exists, err := topic.Exists(ctx)
-	if err != nil {
-		return
-	}
-	if !exists {
-		return s.c.CreateTopic(ctx, topicName)
+	s.m.Lock()
+	defer s.m.Unlock()
+	topic, ok := s.topicMap[topicName]
+	if !ok {
+		topic = s.c.Topic(topicName)
+		// Create the topic if it doesn't exist.
+		var exists bool
+		exists, err = topic.Exists(ctx)
+		if err != nil {
+			return
+		}
+		if !exists {
+			topic, err = s.c.CreateTopic(ctx, topicName)
+			if err != nil {
+				return
+			}
+		}
+		s.topicMap[topicName] = topic
 	}
 	return
 }
