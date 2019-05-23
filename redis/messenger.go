@@ -69,6 +69,7 @@ func (m PoolMessenger) Subscribe(ctx context.Context, channel string) (<-chan st
 // Publish publish given msg on given channel
 func (m PoolMessenger) Publish(ctx context.Context, channel string, msg string) error {
 	c := m.Pool.Get()
+	defer c.Close()
 	_, err := c.Do("PUBLISH", channel, msg)
 	return err
 }
