@@ -18,11 +18,11 @@ type Options struct {
 }
 
 func parseOptions(opt *Options) (ret []option.ClientOption) {
-	if len(opt.Host) == 0 {
-		ret = make([]option.ClientOption, 0)
-	} else if opt.ServiceAccountPath != "" {
+	if opt.ServiceAccountPath != "" {
 		ret = make([]option.ClientOption, 1)
-		ret[0] = option.WithCredentialsFile("./config/service_account.json")
+		ret[0] = option.WithCredentialsFile(opt.ServiceAccountPath)
+	} else if len(opt.Host) == 0 {
+		ret = make([]option.ClientOption, 0)
 	} else {
 		ret = make([]option.ClientOption, 3)
 		ret[0] = option.WithoutAuthentication()
