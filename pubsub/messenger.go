@@ -27,6 +27,7 @@ type Publisher interface {
 	Publish(ctx context.Context, topic string, m RawMessage) error
 }
 
+// RawMessage is pub sub message model
 type RawMessage struct {
 	TopicName  string
 	Data       []byte
@@ -35,8 +36,10 @@ type RawMessage struct {
 	Timestamp  int64
 }
 
+// Handler is invoked on new messages
 type Handler func(context.Context, RawMessage) error
 
+// NewMessenger returns a new Messenger with given options
 func NewMessenger(ctx context.Context, opt *Options) Messenger {
 	client, err := ps.NewClient(ctx, opt.ProjectID, parseOptions(opt)...)
 	if err != nil {
@@ -50,6 +53,7 @@ func NewMessenger(ctx context.Context, opt *Options) Messenger {
 	}
 }
 
+// PubSubMessenger implements Messenger interface
 type PubSubMessenger struct {
 	c        *ps.Client
 	logger   *log.Logger

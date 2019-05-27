@@ -7,7 +7,7 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
-// Options ,,
+// Options define how to connect to pub sub
 type Options struct {
 	Host               string
 	Port               int
@@ -19,11 +19,14 @@ type Options struct {
 
 func parseOptions(opt *Options) (ret []option.ClientOption) {
 	if opt.ServiceAccountPath != "" {
+		// local env
 		ret = make([]option.ClientOption, 1)
 		ret[0] = option.WithCredentialsFile(opt.ServiceAccountPath)
 	} else if len(opt.Host) == 0 {
+		// preprod prod
 		ret = make([]option.ClientOption, 0)
 	} else {
+		// old local env
 		ret = make([]option.ClientOption, 3)
 		ret[0] = option.WithoutAuthentication()
 		ret[1] = option.WithEndpoint(fmt.Sprintf("%v:%v", opt.Host, opt.Port))
@@ -32,6 +35,7 @@ func parseOptions(opt *Options) (ret []option.ClientOption) {
 	return
 }
 
+// SubscriptionOptions define how to perform a sub on a topic
 type SubscriptionOptions struct {
 	ConcurrentHandlers int
 	SubscriptionName   string
