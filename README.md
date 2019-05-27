@@ -1,41 +1,58 @@
 # messaging
-Messaging lib for Golang
+Messaging lib for Golang.
+Google PubSub and Redis PubSub are currently implemented.
 
-# Connect to PubSub
+# Connect to Google PubSub
 ```golang
 func main() {
-  client := &pubsub.PubSubMessengerClient{Host: host, Port: port, ProjectId: projectId, SubscriptionName: subscriptionName}
+  ctx := context.TODO()
+  opt := &pubsub.Options{
+    ProjectID: "foo",
+  }
+  client := pubsub.NewMessenger(ctx, opt)
 }
 ```
+A new client will be created with given options. If something goes wrong connecting to pubsub panic is invoked.
 
 # Publish a message
 ```golang
 func main() {
-  client := &pubsub.PubSubMessengerClient{Host: host, Port: port, ProjectId: projectId, SubscriptionName: subscriptionName}
-  
-  // Publish MyMessage on the topic mymessageevent
-  type MyMessage struct {
-    Text string `json:"Text"`
+  ctx := context.TODO()
+  opt := &pubsub.Options{
+    ProjectID: "foo",
   }
-  client.Publish(MyMessage{Text: "Hello"}, "mymessageevent")
+  client := pubsub.NewMessenger(ctx, opt)
+
+  msg := pubsub.RawMessage{
+    Data: make([]byte, 0),
+    Attributes: nil,
+  }
+  topic := "bar"
+  err := client.Publish(context.TODO(), topic, msg)
 }
 ```
 
 # Subscribe to a message
 ```golang
 func main() {
-  client := &pubsub.PubSubMessengerClient{Host: host, Port: port, ProjectId: projectId, SubscriptionName: subscriptionName}
-  
-  // Publish MyMessage on the topic mymessageevent
-  client.Subscribe("mymessageevent", func(ctx context.Context, msgId string, timestamp int64, msg []byte) error {
-    var myMessage struct {
-      Text string `json:"Text"`
-    }
-    if err := json.Unmarshal(msg, &myMessage); err != nil {
-      return err
-    }
-    ...
+  ctx := context.TODO()
+  opt := &pubsub.Options{
+    ProjectID: "foo",
+  }
+  client := pubsub.NewMessenger(ctx, opt)
+  topic := "bar"
+  h := func(ctx context.Context, msg pubsub.RawMessage) error {
+    // TODO, handle new message
     return nil
-  })
+  }
+  subOptions := &pubsub.SubscriptionOptions{
+    ConcurrentHandlers: 5,
+    SubscriptionName: "baz",
+  }
+
+  err := client.Subscribe(ctx, topic, h, subOptions)
 }
 ```
+if Handler func returns an error, received message won't be acknowledged. Return nil if you want to ignore the message
+Each topic subscription can have different subscription options.
+This method will block until an error happens.
