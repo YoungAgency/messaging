@@ -23,7 +23,7 @@ func parseOptions(opt *Options) (ret []option.ClientOption) {
 		ret = make([]option.ClientOption, 1)
 		ret[0] = option.WithCredentialsFile(opt.ServiceAccountPath)
 	} else if len(opt.Host) == 0 {
-		// preprod prod
+		// preprod
 		ret = make([]option.ClientOption, 0)
 	} else {
 		// old local env

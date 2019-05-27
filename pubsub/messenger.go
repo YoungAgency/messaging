@@ -62,13 +62,16 @@ type PubSubMessenger struct {
 	m        sync.Mutex
 }
 
+// Subscribe perform a subscription on topic with given options
 func (s *PubSubMessenger) Subscribe(ctx context.Context, topicName string, h Handler, opt *SubscriptionOptions) error {
+	// !! do not use opt param directly
+	options := s.checkOptions(opt)
 	topic, err := s.getTopic(ctx, topicName)
 	if err != nil {
 		return err
 	}
-	opt.SubscriptionName += "-" + topicName
-	sub, err := s.getSubscription(ctx, topic, opt)
+	options.SubscriptionName += "-" + topicName
+	sub, err := s.getSubscription(ctx, topic, options)
 	if err != nil {
 		return err
 	}
@@ -139,7 +142,6 @@ func (s *PubSubMessenger) getTopic(ctx context.Context, topicName string) (topic
 }
 
 func (s *PubSubMessenger) getSubscription(ctx context.Context, topic *pubsub.Topic, opt *SubscriptionOptions) (sub *ps.Subscription, err error) {
-	s.checkOptions(opt)
 	sub = s.c.Subscription(opt.SubscriptionName)
 	// Create the topic if it doesn't exist.
 	exists, err := sub.Exists(ctx)
@@ -156,12 +158,16 @@ func (s *PubSubMessenger) getSubscription(ctx context.Context, topic *pubsub.Top
 	return
 }
 
-func (s *PubSubMessenger) checkOptions(opt *SubscriptionOptions) {
+func (s *PubSubMessenger) checkOptions(opt *SubscriptionOptions) *SubscriptionOptions {
 	if opt == nil {
 		panic("pubsub: subscription options can't be nil")
 	} else {
 		if opt.SubscriptionName == "" {
 			panic("invalid subscription name")
 		}
+	}
+	return &SubscriptionOptions{
+		ConcurrentHandlers: opt.ConcurrentHandlers,
+		SubscriptionName:   opt.SubscriptionName,
 	}
 }
