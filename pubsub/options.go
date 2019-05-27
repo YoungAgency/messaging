@@ -9,16 +9,20 @@ import (
 
 // Options ,,
 type Options struct {
-	Host             string
-	Port             int
-	ProjectID        string
-	SubscriptionName string
-	Token            string
+	Host               string
+	Port               int
+	ProjectID          string
+	SubscriptionName   string
+	Token              string
+	ServiceAccountPath string
 }
 
 func parseOptions(opt *Options) (ret []option.ClientOption) {
 	if len(opt.Host) == 0 {
 		ret = make([]option.ClientOption, 0)
+	} else if opt.ServiceAccountPath != "" {
+		ret = make([]option.ClientOption, 1)
+		ret[0] = option.WithCredentialsFile("./config/service_account.json")
 	} else {
 		ret = make([]option.ClientOption, 3)
 		ret[0] = option.WithoutAuthentication()
