@@ -28,11 +28,12 @@ type Publisher interface {
 
 // RawMessage is pub sub message model
 type RawMessage struct {
-	TopicName  string
-	Data       []byte
-	Attributes map[string]string
-	MsgID      string
-	Timestamp  int64
+	TopicName        string
+	Data             []byte
+	Attributes       map[string]string
+	MsgID            string
+	Timestamp        int64
+	SubscriptionName string
 }
 
 // Handler is invoked on new messages
@@ -97,10 +98,11 @@ func (s *PubSubMessenger) Subscribe(ctx context.Context, topicName string, h Han
 			}
 		}()
 		rm := RawMessage{
-			TopicName: topicName,
-			MsgID:     msg.ID,
-			Timestamp: msg.PublishTime.UnixNano() / int64(time.Millisecond),
-			Data:      msg.Data,
+			TopicName:        topicName,
+			MsgID:            msg.ID,
+			Timestamp:        msg.PublishTime.UnixNano() / int64(time.Millisecond),
+			Data:             msg.Data,
+			SubscriptionName: options.SubscriptionName,
 		}
 		err = h(ctx, rm)
 		return
