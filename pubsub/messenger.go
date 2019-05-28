@@ -3,7 +3,6 @@ package pubsub
 import (
 	"context"
 	"log"
-	"os"
 	"sync"
 	"time"
 
@@ -39,7 +38,8 @@ type RawMessage struct {
 // Handler is invoked on new messages
 type Handler func(context.Context, RawMessage) error
 
-// NewMessenger returns a new Messenger with given options
+// NewMessenger returns a new Messenger with given
+// Client code must not modify options
 func NewMessenger(ctx context.Context, opt *Options) Messenger {
 	client, err := ps.NewClient(ctx, opt.ProjectID, parseOptions(opt)...)
 	if err != nil {
@@ -47,7 +47,6 @@ func NewMessenger(ctx context.Context, opt *Options) Messenger {
 	}
 	return &PubSubMessenger{
 		c:        client,
-		logger:   log.New(os.Stdout, "PubSub: ", 0),
 		opt:      opt,
 		topicMap: make(map[string]*ps.Topic),
 	}
@@ -60,6 +59,10 @@ type PubSubMessenger struct {
 	opt      *Options
 	topicMap map[string]*ps.Topic
 	m        sync.Mutex
+}
+
+func (s *PubSubMessenger) SetLogger(l *log.Logger) {
+	s.logger = l
 }
 
 // Subscribe perform a subscription on topic with given options
@@ -77,9 +80,17 @@ func (s *PubSubMessenger) Subscribe(ctx context.Context, topicName string, h Han
 	}
 	return sub.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
 		var err error
+		if s.logger != nil {
+			defer func() {
+				if err != nil {
+					s.logger.Println("error processing message", msg.ID)
+				} else {
+					s.logger.Println("Successfully processed message", msg.ID)
+				}
+			}()
+		}
 		defer func() {
 			if err != nil {
-				// m.logger.Printf("error processing message %v\n", msg.ID)
 				msg.Nack()
 			} else {
 				msg.Ack()
