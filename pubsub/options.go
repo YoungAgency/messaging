@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	"fmt"
+	"os"
 
 	"google.golang.org/api/option"
 	grpc "google.golang.org/grpc"
@@ -18,12 +19,22 @@ type Options struct {
 }
 
 func parseOptions(opt *Options) (ret []option.ClientOption) {
+	// local env
+	if opt.ProjectID == "" {
+		s := os.Getenv("PROJECTID")
+		if s == "" {
+			panic("Invalid project id")
+		}
+		opt.ProjectID = s
+		return make([]option.ClientOption, 0)
+	}
 	if opt.ServiceAccountPath != "" {
-		// local env
 		ret = make([]option.ClientOption, 1)
 		ret[0] = option.WithCredentialsFile(opt.ServiceAccountPath)
-	} else if len(opt.Host) == 0 {
-		// preprod
+		return
+	}
+	// preprod
+	if len(opt.Host) == 0 && opt.Port == 0 {
 		ret = make([]option.ClientOption, 0)
 	} else {
 		// old local env
