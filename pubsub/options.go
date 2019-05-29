@@ -19,6 +19,9 @@ type Options struct {
 }
 
 func parseOptions(opt *Options) (ret []option.ClientOption) {
+	if opt == nil {
+		panic("pubsub: options cannot be nil")
+	}
 	// local env
 	if opt.ProjectID == "" {
 		s := os.Getenv("PROJECTID")
@@ -47,6 +50,8 @@ func parseOptions(opt *Options) (ret []option.ClientOption) {
 }
 
 // SubscriptionOptions define how to perform a sub on a topic
+// SubscriptionName will override PubsubMessenger SubscriptionName field in options
+// See ConcurrentHandlers acts as pub sub documentation
 type SubscriptionOptions struct {
 	ConcurrentHandlers int
 	SubscriptionName   string

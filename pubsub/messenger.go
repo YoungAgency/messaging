@@ -41,7 +41,7 @@ type Handler func(context.Context, RawMessage) error
 
 // NewMessenger returns a new Messenger with given
 // Client code must not modify options
-func NewMessenger(ctx context.Context, opt *Options) Messenger {
+func NewMessenger(ctx context.Context, opt *Options) *PubSubMessenger {
 	client, err := ps.NewClient(ctx, opt.ProjectID, parseOptions(opt)...)
 	if err != nil {
 		panic(err)
@@ -62,6 +62,9 @@ type PubSubMessenger struct {
 	m        sync.Mutex
 }
 
+// SetLogger sets logger to messenger
+// Processed messages ID will be printed
+// Error returned by handler will be printed
 func (s *PubSubMessenger) SetLogger(l *log.Logger) {
 	s.logger = l
 }
@@ -74,7 +77,7 @@ func (s *PubSubMessenger) Subscribe(ctx context.Context, topicName string, h Han
 	if err != nil {
 		return err
 	}
-	options.SubscriptionName += "-" + topicName
+	s.subscriptionName(options, topicName)
 	sub, err := s.getSubscription(ctx, topic, options)
 	if err != nil {
 		return err
@@ -84,7 +87,7 @@ func (s *PubSubMessenger) Subscribe(ctx context.Context, topicName string, h Han
 		if s.logger != nil {
 			defer func() {
 				if err != nil {
-					s.logger.Println("error processing message", msg.ID)
+					s.logger.Println("error processing message", msg.ID, "err:", err)
 				} else {
 					s.logger.Println("Successfully processed message", msg.ID)
 				}
@@ -174,13 +177,21 @@ func (s *PubSubMessenger) getSubscription(ctx context.Context, topic *pubsub.Top
 func (s *PubSubMessenger) checkOptions(opt *SubscriptionOptions) *SubscriptionOptions {
 	if opt == nil {
 		panic("pubsub: subscription options can't be nil")
-	} else {
-		if opt.SubscriptionName == "" {
-			panic("invalid subscription name")
-		}
+	}
+	if s.opt.SubscriptionName == "" && opt.SubscriptionName == "" {
+		panic("pubsub: subscription name must be provided")
 	}
 	return &SubscriptionOptions{
 		ConcurrentHandlers: opt.ConcurrentHandlers,
 		SubscriptionName:   opt.SubscriptionName,
+	}
+}
+
+// subscriptionName modify opt SubscriptionName
+func (s *PubSubMessenger) subscriptionName(opt *SubscriptionOptions, topic string) {
+	if opt.SubscriptionName != "" {
+		opt.SubscriptionName += "-" + topic
+	} else {
+		opt.SubscriptionName = s.opt.SubscriptionName + "-" + topic
 	}
 }
