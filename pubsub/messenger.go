@@ -107,7 +107,7 @@ func (s *PubSubMessenger) Subscribe(ctx context.Context, topicName string, h Han
 			Data:             msg.Data,
 			SubscriptionName: options.SubscriptionName,
 		}
-		err = h(ctx, rm)
+		err = h(context.Background(), rm)
 		return
 	})
 }
