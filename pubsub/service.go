@@ -3,6 +3,7 @@ package pubsub
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 )
 
@@ -27,6 +28,7 @@ type ctxWithCancel struct {
 type Service struct {
 	m           Messenger
 	mainContext context.Context
+	stopMutext  sync.Mutex
 	stopGroup   sync.WaitGroup
 	// protect from concurrent access next fields
 	mutex sync.Mutex
@@ -55,11 +57,13 @@ func (s *Service) AddHandler(topic string, h Handler, opt *SubscriptionOptions) 
 	out := make(chan ErrHandler)
 	go func() {
 		defer close(out)
+		// s.stopMutext.Lock()
 		if err := s.setHandler(topic, h, opt); err != nil {
 			// topic already have an active subscription
 			out <- ErrHandler{err, topic}
 			return
 		}
+		//s.stopMutext.Unlock()
 		err := <-s.startHandler(topic)
 		// if err is nil, handler context was cancelled
 		if err.Err == nil {
@@ -85,6 +89,8 @@ func (s *Service) StopHandler(topic string) error {
 // Stop cancel all active subscriptions on Service.
 // When this method returns all subscriptions are canceled and all handlers have returned
 func (s *Service) Stop() {
+	s.stopMutext.Lock()
+	defer s.stopMutext.Unlock()
 	s.mutex.Lock()
 	wg := &sync.WaitGroup{}
 	wg.Add(len(s.subscriptions))
@@ -95,8 +101,9 @@ func (s *Service) Stop() {
 		}(sub)
 	}
 	s.mutex.Unlock()
-
+	fmt.Println("a")
 	s.stopGroup.Wait()
+	fmt.Println("b")
 	wg.Wait()
 }
 
