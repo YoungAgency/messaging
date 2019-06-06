@@ -49,9 +49,9 @@ func parseOptions(opt *Options) (ret []option.ClientOption) {
 	return
 }
 
-// SubscriptionOptions define how to perform a sub on a topic
-// SubscriptionName will override PubsubMessenger SubscriptionName field in options
-// See ConcurrentHandlers acts as pub sub documentation
+// SubscriptionOptions define how to perform a sub on a topic.
+// SubscriptionName will override PubsubMessenger SubscriptionName field in options.
+// See ConcurrentHandlers acts as pub sub documentation.
 type SubscriptionOptions struct {
 	ConcurrentHandlers int
 	SubscriptionName   string
