@@ -11,14 +11,30 @@ type subscription struct {
 	ctx   ctxWithCancel
 	opt   *SubscriptionOptions
 	errCh chan ErrHandler
+	wg    *sync.WaitGroup
 }
 
-func (s subscription) start() {
-
+func newSubscription(ctx ctxWithCancel, h Handler, opt *SubscriptionOptions) subscription {
+	wg := &sync.WaitGroup{}
+	newHandler := func(ctx context.Context, msg RawMessage) error {
+		wg.Add(1)
+		defer wg.Done()
+		return h(ctx, msg)
+	}
+	return subscription{
+		h:     newHandler,
+		ctx:   ctx,
+		opt:   opt,
+		wg:    wg,
+		errCh: make(chan ErrHandler),
+	}
 }
 
-func (s subscription) stop() {
+func (s *subscription) stop() {
+	// cancel subscription context
 	s.ctx.cancel()
+	// wait all handlers to return
+	s.wg.Wait()
 }
 
 type ctxWithCancel struct {
@@ -64,9 +80,7 @@ func (s *Service) AddHandler(topic string, h Handler, opt *SubscriptionOptions) 
 			return
 		}
 		err := <-s.startHandler(topic)
-		// an error occured, delete handler stuff from service
 		// if err is nil, handler context was cancelled
-		s.removeMap(topic)
 		out <- err
 	}()
 	return out
@@ -127,9 +141,10 @@ func (s *Service) startHandler(topic string) <-chan ErrHandler {
 		defer s.stopGroup.Done()
 		defer close(out)
 		out <- ErrHandler{
-			Err:   s.m.Subscribe(w.ctx, topic, w.h, w.opt),
+			Err:   s.m.Subscribe(w.ctx.ctx, topic, w.h, w.opt),
 			Topic: topic,
 		}
+		// an error occured, delete handler stuff from service
 		s.removeMap(topic)
 	}()
 	return out
@@ -141,16 +156,9 @@ func (s *Service) addMapLocked(topic string, h Handler, opt *SubscriptionOptions
 		err = errors.New("")
 		return
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	s.subscriptions[topic] = subscription{
-		h: h,
-		ctx: ctxWithCancel{
-			ctx:    ctx,
-			cancel: cancel,
-		},
-		opt:   opt,
-		errCh: make(chan ErrHandler),
-	}
+	// this way canceling mainContext will result in all handlers stop
+	ctx, cancel := context.WithCancel(s.mainContext.ctx)
+	s.subscriptions[topic] = newSubscription(ctxWithCancel{ctx, cancel}, h, opt)
 	return
 }
 
