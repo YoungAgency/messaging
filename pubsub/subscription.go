@@ -10,17 +10,15 @@ type subscription struct {
 	h      Handler
 	ctx    ctxWithCancel
 	opt    *SubscriptionOptions
-	errCh  chan ErrHandler
 	active int32
 }
 
 func newSubscription(ctx ctxWithCancel, h Handler, opt *SubscriptionOptions) *subscription {
 	ret := &subscription{
-		ctx:   ctx,
-		opt:   opt,
-		errCh: make(chan ErrHandler),
+		ctx: ctx,
+		opt: opt,
 	}
-	ret.h = func(ctx context.Context, msg RawMessage) error {
+	ret.h = func(ctx context.Context, msg RawMessage) (err error) {
 		atomic.AddInt32(&ret.active, 1)
 		defer atomic.AddInt32(&ret.active, -1)
 		return h(ctx, msg)

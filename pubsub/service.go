@@ -3,14 +3,13 @@ package pubsub
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 )
 
 var (
 	// ErrStopped is returned when subscription was cancelled by stopping it
 	ErrStopped = errors.New("Stop called for this topic")
-	// ErrAlreadyExists is returned by AddHandler when
+	// ErrAlreadyExists is returned by AddSubscription when
 	// a subcription on given topic already exists
 	ErrAlreadyExists = errors.New("Subscription already exists")
 	// ErrNotExists is returned by RemoveHandler when a subscription on given topic
@@ -28,7 +27,7 @@ type ctxWithCancel struct {
 type Service struct {
 	m           Messenger
 	mainContext context.Context
-	stopMutext  sync.Mutex
+	stopMutex   sync.Mutex
 	stopGroup   sync.WaitGroup
 	// protect from concurrent access next fields
 	mutex sync.Mutex
@@ -36,9 +35,9 @@ type Service struct {
 	subscriptions map[string]*subscription
 }
 
-// ErrHandler is a type that wrap an error and the topic
+// SubscriptionError is a type that wrap an error and the topic
 // on which it occured
-type ErrHandler struct {
+type SubscriptionError struct {
 	Err   error
 	Topic string
 }
@@ -52,30 +51,34 @@ func NewService(ctx context.Context, m Messenger) *Service {
 	}
 }
 
-// AddHandler set given handler for topic, it also starts  it
-func (s *Service) AddHandler(topic string, h Handler, opt *SubscriptionOptions) <-chan ErrHandler {
-	out := make(chan ErrHandler)
+// AddSubscription set given handler for topic, it also starts  it
+func (s *Service) AddSubscription(topic string, h Handler, opt *SubscriptionOptions) <-chan SubscriptionError {
+	out := make(chan SubscriptionError)
 	go func() {
 		defer close(out)
-		// s.stopMutext.Lock()
-		if err := s.setHandler(topic, h, opt); err != nil {
+		s.mutex.Lock()
+		err := s.addMapLocked(topic, h, opt)
+		s.mutex.Unlock()
+		if err != nil {
 			// topic already have an active subscription
-			out <- ErrHandler{err, topic}
+			out <- SubscriptionError{err, topic}
 			return
 		}
-		//s.stopMutext.Unlock()
-		err := <-s.startHandler(topic)
+		errH := <-s.startHandler(topic)
 		// if err is nil, handler context was cancelled
-		if err.Err == nil {
-			err.Err = ErrStopped
+		if errH.Err == nil {
+			errH.Err = ErrStopped
 		}
-		out <- err
+		out <- errH
+		s.removeMap(topic)
 	}()
 	return out
 }
 
-// StopHandler cancel active subscription on topic, if exists
-func (s *Service) StopHandler(topic string) error {
+// StopSubscription cancel active subscription on topic, if exists
+func (s *Service) StopSubscription(topic string) error {
+	s.stopMutex.Lock()
+	defer s.stopMutex.Unlock()
 	s.mutex.Lock()
 	sub, err := s.getMapLocked(topic)
 	s.mutex.Unlock()
@@ -89,10 +92,10 @@ func (s *Service) StopHandler(topic string) error {
 // Stop cancel all active subscriptions on Service.
 // When this method returns all subscriptions are canceled and all handlers have returned
 func (s *Service) Stop() {
-	s.stopMutext.Lock()
-	defer s.stopMutext.Unlock()
-	s.mutex.Lock()
+	s.stopMutex.Lock()
+	defer s.stopMutex.Unlock()
 	wg := &sync.WaitGroup{}
+	s.mutex.Lock()
 	wg.Add(len(s.subscriptions))
 	for _, sub := range s.subscriptions {
 		go func(sub *subscription) {
@@ -101,36 +104,40 @@ func (s *Service) Stop() {
 		}(sub)
 	}
 	s.mutex.Unlock()
-	fmt.Println("a")
+	// wait all subscription to close their ErrHandlerChan
 	s.stopGroup.Wait()
-	fmt.Println("b")
+	// wait all handlers to return
 	wg.Wait()
 }
 
-func (s *Service) startHandler(topic string) <-chan ErrHandler {
+// Subscribe delegate to underlying Messenger interface
+func (s *Service) Subscribe(ctx context.Context, topic string, h Handler, opt *SubscriptionOptions) error {
+	return s.m.Subscribe(ctx, topic, h, opt)
+}
+
+// Publish delegate to underlying Messenger interface
+func (s *Service) Publish(ctx context.Context, topic string, m RawMessage) error {
+	return s.m.Publish(ctx, topic, m)
+}
+
+func (s *Service) startHandler(topic string) <-chan SubscriptionError {
+	s.stopMutex.Lock()
+	defer s.stopMutex.Unlock()
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	out := make(chan ErrHandler)
 	sub, _ := s.getMapLocked(topic)
+	s.mutex.Unlock()
+
+	out := make(chan SubscriptionError)
 	s.stopGroup.Add(1)
 	go func() {
 		defer s.stopGroup.Done()
 		defer close(out)
-		out <- ErrHandler{
+		out <- SubscriptionError{
 			Err:   s.m.Subscribe(sub.ctx.ctx, topic, sub.h, sub.opt),
 			Topic: topic,
 		}
-		// an error occured, delete handler stuff from service
-		s.removeMap(topic)
 	}()
 	return out
-}
-
-// SetHandler set given handler for topic
-func (s *Service) setHandler(topic string, h Handler, opt *SubscriptionOptions) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	return s.addMapLocked(topic, h, opt)
 }
 
 func (s *Service) addMapLocked(topic string, h Handler, opt *SubscriptionOptions) (err error) {
@@ -159,10 +166,10 @@ func (s *Service) removeMap(topic string) {
 	delete(s.subscriptions, topic)
 }
 
-func Multiplex(channels ...<-chan ErrHandler) <-chan ErrHandler {
-	out := make(chan ErrHandler)
+func Multiplex(channels ...<-chan SubscriptionError) <-chan SubscriptionError {
+	out := make(chan SubscriptionError)
 	wg := &sync.WaitGroup{}
-	f := func(ch <-chan ErrHandler) {
+	f := func(ch <-chan SubscriptionError) {
 		defer wg.Done()
 		for v := range ch {
 			out <- v
