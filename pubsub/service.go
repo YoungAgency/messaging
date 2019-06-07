@@ -22,9 +22,9 @@ var (
 type Service struct {
 	m           Messenger
 	mainContext context.Context
-	stopGroup   sync.WaitGroup
 	// protect from concurrent access next fields
-	mutex sync.Mutex
+	mutex     sync.Mutex
+	stopGroup sync.WaitGroup
 	// map topic-subscriptions
 	subscriptions map[string]*subscription
 }
@@ -96,10 +96,10 @@ func (s *Service) Stop() {
 			sub.stop()
 		}(sub)
 	}
-	// wait all subscription to close their ErrHandlerChan
+	// wait all subscription to close their SubscriptionError channel.
 	// (kerol) probably this is useless
 	s.stopGroup.Wait()
-	// wait all handlers to return
+	// block until all handlers invoked by pubsub returns
 	wg.Wait()
 	s.deleteMapLocked()
 }
@@ -121,8 +121,7 @@ func (s *Service) removeMap(topic string) {
 }
 
 func (s *Service) addMapLocked(topic string, h Handler, opt *SubscriptionOptions) (sub *subscription, err error) {
-	_, ok := s.subscriptions[topic]
-	if ok {
+	if _, ok := s.subscriptions[topic]; ok {
 		return nil, ErrAlreadyExists
 	}
 	// this way canceling mainContext will result in all handlers stop
@@ -134,19 +133,21 @@ func (s *Service) addMapLocked(topic string, h Handler, opt *SubscriptionOptions
 
 func (s *Service) getMapLocked(topic string) (sub *subscription, err error) {
 	var ok bool
-	sub, ok = s.subscriptions[topic]
-	if !ok {
+	if sub, ok = s.subscriptions[topic]; !ok {
 		return nil, ErrNotExists
 	}
 	return
 }
 
+// delete all subscriptions from map
 func (s *Service) deleteMapLocked() {
 	for key := range s.subscriptions {
 		delete(s.subscriptions, key)
 	}
 }
 
+// Multiplex given channels. Returned channel is closed when
+// all in channels are closed
 func Multiplex(channels ...<-chan SubscriptionError) <-chan SubscriptionError {
 	out := make(chan SubscriptionError)
 	wg := &sync.WaitGroup{}

@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,6 +14,7 @@ type SubscriptionError struct {
 	Err   error
 	Topic string
 }
+
 type ctxWithCancel struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -45,10 +47,20 @@ func (s *subscription) start(m Messenger, wg *sync.WaitGroup) <-chan Subscriptio
 	go func() {
 		defer close(out)
 		defer wg.Done()
-		out <- SubscriptionError{
-			Err:   m.Subscribe(s.subParams()),
-			Topic: s.topic,
+		var err SubscriptionError
+		select {
+		case <-s.ctx.ctx.Done():
+			err = SubscriptionError{
+				Err:   errors.New("subscription context is done"),
+				Topic: s.topic,
+			}
+		default:
+			err = SubscriptionError{
+				Err:   m.Subscribe(s.subParams()),
+				Topic: s.topic,
+			}
 		}
+		out <- err
 	}()
 	return out
 }
@@ -57,8 +69,7 @@ func (s *subscription) start(m Messenger, wg *sync.WaitGroup) <-chan Subscriptio
 func (s *subscription) stop() {
 	s.ctx.cancel()
 	for {
-		active := atomic.LoadInt32(&s.active)
-		if active == 0 {
+		if atomic.LoadInt32(&s.active) == 0 {
 			return
 		}
 		<-time.After(50 * time.Millisecond)

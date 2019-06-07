@@ -24,12 +24,11 @@ func parseOptions(opt *Options) (ret []option.ClientOption) {
 	}
 	// local env
 	if opt.ProjectID == "" {
-		s := os.Getenv("PROJECTID")
-		if s == "" {
-			panic("Invalid project id")
+		if s := os.Getenv("PROJECTID"); s != "" {
+			opt.ProjectID = s
+			return make([]option.ClientOption, 0)
 		}
-		opt.ProjectID = s
-		return make([]option.ClientOption, 0)
+		panic("Invalid project id")
 	}
 	if opt.ServiceAccountPath != "" {
 		ret = make([]option.ClientOption, 1)
