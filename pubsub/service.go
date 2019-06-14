@@ -164,7 +164,7 @@ func (s *Service) addMapLocked(topic string, h Handler, opt *SubscriptionOptions
 func (s *Service) getMapLocked(topic string) (sub *subscription, err error) {
 	var ok bool
 	if sub, ok = s.subscriptions[topic]; !ok {
-		return nil, ErrNotExists
+		err = ErrNotExists
 	}
 	return
 }
