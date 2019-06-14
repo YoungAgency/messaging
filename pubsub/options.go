@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/YoungAgency/messaging/storage"
+
 	"google.golang.org/api/option"
 	grpc "google.golang.org/grpc"
 )
@@ -54,4 +56,8 @@ func parseOptions(opt *Options) (ret []option.ClientOption) {
 type SubscriptionOptions struct {
 	ConcurrentHandlers int
 	SubscriptionName   string
+}
+
+type ServiceOptions struct {
+	Storage storage.EventStorage
 }
