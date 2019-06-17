@@ -30,7 +30,7 @@ func parseOptions(opt *Options) (ret []option.ClientOption) {
 			opt.ProjectID = s
 			return make([]option.ClientOption, 0)
 		}
-		panic("Invalid project id")
+		panic("pubsub: project id is not set")
 	}
 	if opt.ServiceAccountPath != "" {
 		ret = make([]option.ClientOption, 1)

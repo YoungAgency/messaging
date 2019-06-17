@@ -16,7 +16,7 @@ type RedisEventStorage struct {
 
 var (
 	// ErrDuplicateEvent is returned by Add method if given message already exists
-	ErrDuplicateEvent = errors.New("Event already exists")
+	ErrDuplicateEvent = errors.New("storage: event already exists")
 )
 
 // NewRedisEventStorage creates a connection pool to redis
@@ -56,10 +56,7 @@ func (es RedisEventStorage) Add(ctx context.Context, topic string, eventID strin
 	}
 	now := date.NowTimestamp()
 	_, err = conn.Do("HSET", topic, eventID, now)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // Exists checks if event is already processed in the hash
