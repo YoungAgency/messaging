@@ -11,13 +11,13 @@ import (
 
 var (
 	// ErrStopped is returned when subscription was cancelled by stopping it
-	ErrStopped = errors.New("Stop called for this topic")
+	ErrStopped = errors.New("pubsub: stop called for this topic")
 	// ErrAlreadyExists is returned by AddSubscription when
 	// a subcription on given topic already exists
-	ErrAlreadyExists = errors.New("Subscription already exists")
+	ErrAlreadyExists = errors.New("pubsub: subscription already exists")
 	// ErrNotExists is returned by RemoveHandler when a subscription on given topic
 	// does not exists
-	ErrNotExists = errors.New("Subscription does not exist")
+	ErrNotExists = errors.New("pubsub: subscription does not exist")
 )
 
 // Service is a wrapper around a Messenger that permits to stop
@@ -66,7 +66,8 @@ func (s *Service) AddSubscription(topic string, h Handler, opt *SubscriptionOpti
 		if errH.Err == nil {
 			errH.Err = ErrStopped
 		} else {
-			// since Stop holds mutex lock during his operations
+			// starts returns nil only if subscription was canceled by service.
+			// So, since Stop method holds mutex lock during his operations
 			// this will result in a deadlock
 			s.removeMap(topic)
 		}
@@ -120,6 +121,7 @@ func (s *Service) Publish(ctx context.Context, topic string, m RawMessage) error
 	return s.m.Publish(ctx, topic, m)
 }
 
+// remove topic from service map with lock
 func (s *Service) removeMap(topic string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -134,7 +136,7 @@ func (s *Service) checkStorage(h Handler) Handler {
 			switch err {
 			case storage.ErrDuplicateEvent:
 				// Event already exists in storage, return nil
-				fmt.Println("PubSub service: ignoring duplicate event", msg.MsgID)
+				fmt.Println("pubsub: ignoring duplicate event", msg.MsgID)
 				return nil
 			default:
 				return err
@@ -150,6 +152,8 @@ func (s *Service) checkStorage(h Handler) Handler {
 	return h
 }
 
+// create and add a subscription to service map
+// this method is not goroutine safe
 func (s *Service) addMapLocked(topic string, h Handler, opt *SubscriptionOptions) (sub *subscription, err error) {
 	if _, ok := s.subscriptions[topic]; ok {
 		return nil, ErrAlreadyExists
