@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/gomodule/redigo/redis"
@@ -19,7 +21,7 @@ func TestPoolMessenger(t *testing.T) {
 		},
 	}
 	done, subscribed := make(chan int, 0), make(chan int, 0)
-	channel := "test_channel"
+	channel := "test_channel_" + uuid.New().String()
 	message := "test_message"
 
 	received := ""
