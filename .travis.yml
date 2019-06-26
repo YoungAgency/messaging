@@ -4,12 +4,10 @@ services:
   - redis-server
 go_import_path: github.com/YoungAgency/messaging
 go:
+  - 1.10
+  - 1.11
   - 1.12
 
 before_install:                                                                 
   - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh  
   - dep ensure
-
-script:
-  - diff -u <(echo -n) <(gofmt -d .)
-  - go vet $(go list ./... | grep -v /vendor/)

@@ -27,9 +27,8 @@ func TestPoolMessenger(t *testing.T) {
 		replies, errs := m.Subscribe(context.Background(), "test")
 		for {
 			select {
-			case r, ok := <-replies:
+			case _, ok := <-replies:
 				if ok {
-					r = r
 					received++
 				}
 			case err, ok := <-errs:
@@ -37,7 +36,6 @@ func TestPoolMessenger(t *testing.T) {
 					if err != nil {
 						t.Error(err)
 					}
-					err = err
 				}
 			}
 		}
