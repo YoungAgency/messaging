@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -44,6 +45,11 @@ func TestPoolMessenger(t *testing.T) {
 
 	err := m.Publish(context.Background(), channel, message)
 	assert.NoError(t, err)
-	<-done
-	assert.Equal(t, message, received)
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+	select {
+	case <-done:
+		assert.Equal(t, message, received)
+	case <-ctx.Done():
+		t.Fatal(context.DeadlineExceeded)
+	}
 }
