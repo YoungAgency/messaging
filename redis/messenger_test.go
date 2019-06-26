@@ -18,7 +18,7 @@ func TestPoolMessenger(t *testing.T) {
 			},
 		},
 	}
-	done := make(chan int, 0)
+	done, subscribed := make(chan int, 0), make(chan int, 0)
 	channel := "test_channel"
 	message := "test_message"
 
@@ -28,6 +28,7 @@ func TestPoolMessenger(t *testing.T) {
 			done <- 1
 		}()
 		replies, errs := m.Subscribe(context.Background(), channel)
+		subscribed <- 1
 		for {
 			select {
 			case r, ok := <-replies:
@@ -42,7 +43,7 @@ func TestPoolMessenger(t *testing.T) {
 			}
 		}
 	}()
-
+	<-subscribed
 	err := m.Publish(context.Background(), channel, message)
 	assert.NoError(t, err)
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
