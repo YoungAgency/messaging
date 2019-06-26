@@ -20,38 +20,21 @@ func TestPoolMessenger(t *testing.T) {
 			},
 		},
 	}
-	done, subscribed := make(chan int, 0), make(chan int, 0)
-	channel := "test_channel_" + uuid.New().String()
+	channel := "test_channel_" + uuid.New().String()[:4]
 	message := "test_message"
-
-	received := ""
 	go func() {
-		defer func() {
-			done <- 1
-		}()
-		replies, errs := m.Subscribe(context.Background(), channel)
-		subscribed <- 1
-		for {
-			select {
-			case r, ok := <-replies:
-				if ok {
-					received = r
-					return
-				}
-			case err, ok := <-errs:
-				if ok && err != nil {
-					t.Error(err)
-				}
-			}
-		}
+		time.Sleep(time.Second * 2)
+		err := m.Publish(context.Background(), channel, message)
+		assert.NoError(t, err)
 	}()
-	<-subscribed
-	err := m.Publish(context.Background(), channel, message)
-	assert.NoError(t, err)
+
+	replies, errs := m.Subscribe(context.Background(), channel)
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 	select {
-	case <-done:
-		assert.Equal(t, message, received)
+	case r := <-replies:
+		assert.Equal(t, message, r)
+	case err := <-errs:
+		t.Error(err)
 	case <-ctx.Done():
 		t.Fatal(context.DeadlineExceeded)
 	}
