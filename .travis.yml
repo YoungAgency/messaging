@@ -1,12 +1,11 @@
 language: go
 sudo: false
-services:
-  - redis-server
 go_import_path: github.com/YoungAgency/messaging
 go:
   - 1.11
   - 1.12
 
 before_install:                                                                 
+  - sudo service redis-server start --bind 127.0.0.1
   - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh  
   - dep ensure
