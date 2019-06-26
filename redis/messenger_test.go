@@ -2,9 +2,7 @@ package redis
 
 import (
 	"context"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -19,42 +17,33 @@ func TestPoolMessenger(t *testing.T) {
 			},
 		},
 	}
+	done := make(chan int, 0)
+	channel := "test_channel"
+	message := "test_message"
 
-	var sent int64
-	var received int64
-
+	received := ""
 	go func() {
-		replies, errs := m.Subscribe(context.Background(), "test")
+		defer func() {
+			done <- 1
+		}()
+		replies, errs := m.Subscribe(context.Background(), channel)
 		for {
 			select {
-			case _, ok := <-replies:
+			case r, ok := <-replies:
 				if ok {
-					received++
+					received = r
+					return
 				}
 			case err, ok := <-errs:
-				if ok {
-					if err != nil {
-						t.Error(err)
-					}
+				if ok && err != nil {
+					t.Error(err)
 				}
 			}
 		}
 	}()
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		defer time.Sleep(2 * time.Second)
-		time.Sleep(10 * time.Millisecond)
-		for i := 0; i < 5000; i++ {
-			go func() {
-				err := m.Publish(context.Background(), "test", "message")
-				assert.NoError(t, err)
-			}()
-			sent++
-		}
-	}()
-	wg.Wait()
-	assert.Equal(t, sent, received)
+	err := m.Publish(context.Background(), channel, message)
+	assert.NoError(t, err)
+	<-done
+	assert.Equal(t, message, received)
 }

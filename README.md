@@ -1,4 +1,5 @@
 # messaging
+[![Build Status](https://www.travis-ci.org/YoungAgency/messaging.svg?branch=master)](https://www.travis-ci.org/YoungAgency/messaging)
 Messaging lib for Golang.
 Google PubSub and Redis PubSub are currently implemented.
 
