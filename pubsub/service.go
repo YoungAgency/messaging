@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -120,6 +121,17 @@ func (s *Service) Subscribe(ctx context.Context, topic string, h Handler, opt *S
 // Publish delegate to underlying Messenger interface
 func (s *Service) Publish(ctx context.Context, topic string, m RawMessage) error {
 	return s.m.Publish(ctx, topic, m)
+}
+
+// PublishJSON marshal data param as JSON an publish a message on given topic
+func (s *Service) PublishJSON(ctx context.Context, topic string, data interface{}) error {
+	b, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	return s.Publish(ctx, topic, RawMessage{
+		Data: b,
+	})
 }
 
 // remove topic from service map with lock
