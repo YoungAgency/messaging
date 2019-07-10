@@ -15,7 +15,7 @@ func TestManual(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s := NewService(ctx, m)
+	s := NewService(ctx, m, nil)
 	ch := Multiplex(
 		s.AddSubscription("test-1", func(ctx context.Context, msg RawMessage) error {
 			fmt.Println("received on topic test-1")

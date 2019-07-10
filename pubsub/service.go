@@ -33,9 +33,10 @@ type Service struct {
 	opt           *ServiceOptions
 }
 
-// NewService returns a new initialized service
+// NewService returns a new initialized service.
 // if ctx is canceled all subscriber will return, but it will be impossible to wait
-// until all handlers have returned
+// until all handlers have returned.
+// opt param may be nil.
 func NewService(ctx context.Context, m Messenger, opt *ServiceOptions) *Service {
 	return &Service{
 		m:             m,
@@ -132,28 +133,30 @@ func (s *Service) checkStorage(h Handler) Handler {
 	if s.opt != nil && s.opt.Storage != nil {
 		st := s.opt.Storage
 		f := func(ctx context.Context, msg RawMessage) error {
-			err := st.Add(ctx, msg.TopicName, msg.MsgID)
-			switch err {
-			case storage.ErrDuplicateEvent:
-				// Event already exists in storage, return nil
-				fmt.Println("pubsub: ignoring duplicate event", msg.MsgID)
-				return nil
-			default:
-				return err
+			if err := st.Add(ctx, msg.TopicName, msg.MsgID); err != nil {
+				switch err {
+				case storage.ErrDuplicateEvent:
+					// Event already exists in storage, return nil
+					fmt.Println("pubsub: ignoring duplicate event", msg.MsgID)
+					return nil
+				default:
+					return err
+				}
 			}
 			// invoke real handler
-			if err = h(ctx, msg); err != nil {
+			if err := h(ctx, msg); err != nil {
 				st.Del(ctx, msg.TopicName, msg.MsgID)
+				return err
 			}
-			return err
+			return nil
 		}
 		return f
 	}
 	return h
 }
 
-// create and add a subscription to service map
-// this method is not goroutine safe
+// create and add a subscription to service map.
+// This method is not goroutine safe
 func (s *Service) addMapLocked(topic string, h Handler, opt *SubscriptionOptions) (sub *subscription, err error) {
 	if _, ok := s.subscriptions[topic]; ok {
 		return nil, ErrAlreadyExists
