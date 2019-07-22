@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/YoungAgency/messaging/storage"
+
 	"google.golang.org/api/option"
 	grpc "google.golang.org/grpc"
 )
@@ -24,12 +26,11 @@ func parseOptions(opt *Options) (ret []option.ClientOption) {
 	}
 	// local env
 	if opt.ProjectID == "" {
-		s := os.Getenv("PROJECTID")
-		if s == "" {
-			panic("Invalid project id")
+		if s := os.Getenv("PROJECTID"); s != "" {
+			opt.ProjectID = s
+			return make([]option.ClientOption, 0)
 		}
-		opt.ProjectID = s
-		return make([]option.ClientOption, 0)
+		panic("pubsub: project id is not set")
 	}
 	if opt.ServiceAccountPath != "" {
 		ret = make([]option.ClientOption, 1)
@@ -49,10 +50,14 @@ func parseOptions(opt *Options) (ret []option.ClientOption) {
 	return
 }
 
-// SubscriptionOptions define how to perform a sub on a topic
-// SubscriptionName will override PubsubMessenger SubscriptionName field in options
-// See ConcurrentHandlers acts as pub sub documentation
+// SubscriptionOptions define how to perform a sub on a topic.
+// SubscriptionName will override PubsubMessenger SubscriptionName field in options.
+// See ConcurrentHandlers acts as pub sub documentation.
 type SubscriptionOptions struct {
 	ConcurrentHandlers int
 	SubscriptionName   string
+}
+
+type ServiceOptions struct {
+	Storage storage.EventStorage
 }

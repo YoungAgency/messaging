@@ -87,9 +87,9 @@ func (s *PubSubMessenger) Subscribe(ctx context.Context, topicName string, h Han
 		if s.logger != nil {
 			defer func() {
 				if err != nil {
-					s.logger.Println("error processing message", msg.ID, "err:", err)
+					s.logger.Println("msg nack", msg.ID, "err:", err)
 				} else {
-					s.logger.Println("Successfully processed message", msg.ID)
+					s.logger.Println("msg ack", msg.ID)
 				}
 			}()
 		}

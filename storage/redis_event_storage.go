@@ -50,10 +50,7 @@ func (es RedisEventStorage) Add(ctx context.Context, topic string, eventID strin
 	}
 	now := date.NowTimestamp()
 	_, err = conn.Do("HSET", topic, eventID, now)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // Exists checks if event is already processed in the hash
