@@ -23,7 +23,7 @@
 
 [[constraint]]
   name = "cloud.google.com/go"
-  version = "0.37.4"
+  version = "0.46.3"
 
 [[constraint]]
   name = "github.com/YoungAgency/utils"
@@ -39,8 +39,8 @@
 
 [[constraint]]
   name = "google.golang.org/api"
-  version = "0.3.2"
+  version = "0.10.0"
 
 [[constraint]]
   name = "google.golang.org/grpc"
-  version = "1.21.1"
+  version = "1.24.0"
